@@ -1,0 +1,17 @@
+{
+  "name": "书阁 · 私人电子书阅读平台",
+  "short_name": "书阁",
+  "description": "基于 Cloudflare 免费服务的私人电子书阅读平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#5a63e8",
+  "icons": [
+    {
+      "src": "/icons/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

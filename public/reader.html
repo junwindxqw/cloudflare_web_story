@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f5f7" />
+  <meta name="robots" content="noindex" />
+  <title>阅读 · 书阁</title>
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/reader.css" />
+  <script type="module" src="/js/reader.js"></script>
+</head>
+<body data-rtheme="light">
+  <div id="app" class="reader-app">
+    <header id="reader-top" class="chrome">
+      <button class="icon-btn" id="back-btn" title="返回书架" aria-label="返回书架">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div id="reader-title"></div>
+      <div class="r-actions">
+        <button class="icon-btn" id="toc-btn" title="目录" aria-label="目录" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="阅读设置" aria-label="阅读设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5m0 14v-6m0-2V9m8 12v-4m0-4V5m8 16v-2m0-4v-6"/><path d="M2 9h4m4 0h4m4 6h4M14 3h4m-8 0h0M2 17h4m4 0h4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="reader-stage">
+      <div id="viewer"></div>
+      <div id="load-tip" class="load-tip"><div class="spinner"></div><p>正在打开书籍…</p></div>
+    </main>
+
+    <footer id="reader-bottom" class="chrome">
+      <button class="icon-btn" id="prev-btn" title="上一页" aria-label="上一页">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <input id="progress-slider" type="range" min="0" max="1000" value="0" aria-label="阅读进度" />
+      <span id="progress-label">--</span>
+      <button class="icon-btn" id="next-btn" title="下一页" aria-label="下一页">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </footer>
+
+    <div id="drawer-mask" hidden></div>
+    <aside id="toc-drawer" aria-label="目录">
+      <div class="toc-head">
+        <strong>目录</strong>
+        <button class="icon-btn" id="toc-close" title="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="toc-list"></div>
+    </aside>
+
+    <div id="settings-sheet" hidden>
+      <div class="sheet-row">
+        <span class="sheet-label">阅读背景</span>
+        <div class="theme-dots" id="theme-dots">
+          <button data-rtheme="light" title="白色"><i></i>白</button>
+          <button data-rtheme="sepia" title="羊皮纸"><i></i>羊皮</button>
+          <button data-rtheme="dark" title="夜间"><i></i>夜</button>
+        </div>
+      </div>
+      <div class="sheet-row" id="font-row">
+        <span class="sheet-label">字号</span>
+        <div class="stepper">
+          <button id="font-minus">A−</button>
+          <span id="font-size-label">18</span>
+          <button id="font-plus">A+</button>
+        </div>
+      </div>
+      <div class="sheet-row" id="zoom-row" hidden>
+        <span class="sheet-label">缩放</span>
+        <div class="stepper">
+          <button id="zoom-out">−</button>
+          <span id="zoom-label">适配</span>
+          <button id="zoom-in">+</button>
+        </div>
+      </div>
+    </div>
+    <div id="sheet-mask" hidden></div>
+  </div>
+</body>
+</html>

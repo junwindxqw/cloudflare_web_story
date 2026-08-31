@@ -1,0 +1,26 @@
+{
+  "name": "cloudflare-web-story",
+  "version": "1.0.0",
+  "description": "书阁 · 基于 Cloudflare 免费服务的私人电子书阅读平台",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "setup": "node scripts/setup.js",
+    "vendor": "node scripts/vendor.js",
+    "postinstall": "node scripts/vendor.js",
+    "deploy": "wrangler deploy",
+    "release": "npm run setup && npm run deploy"
+  },
+  "devDependencies": {
+    "iconv-lite": "^0.6.3",
+    "wrangler": "^4.27.0"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^5.4.149"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

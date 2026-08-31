@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f5f7" />
+  <meta name="robots" content="noindex" />
+  <title>登录 · 书阁</title>
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/login.css" />
+  <script type="module" src="/js/login.js"></script>
+</head>
+<body>
+  <main class="login-wrap">
+    <section class="login-card">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#5a63e8" />
+              <stop offset="1" stop-color="#8b5cf6" />
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="40" height="40" rx="12" fill="url(#lg)" />
+          <path d="M24 14.5c-2.8-2-6.5-2.6-10-2v19c3.5-.6 7.2 0 10 2 2.8-2 6.5-2.6 10-2v-19c-3.5-.6-7.2 0-10 2z" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" />
+          <path d="M24 14.5v19" stroke="#fff" stroke-width="2.4" />
+        </svg>
+        <h1>书阁</h1>
+        <p class="slogan">云端私人书房 · 随时随地阅读</p>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-view="login">登录</button>
+        <button type="button" class="tab" data-view="register">注册</button>
+      </div>
+
+      <p id="auth-error" class="error" role="alert" hidden></p>
+
+      <!-- 登录 -->
+      <form id="view-login" class="auth-view" autocomplete="on" hidden>
+        <label class="field">
+          <span>邮箱</span>
+          <input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input class="input" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码" />
+        </label>
+        <button class="btn btn-primary submit-btn" type="submit">进入书房</button>
+        <p class="mini-actions"><a href="#" id="to-forgot">忘记密码？</a></p>
+      </form>
+
+      <!-- 注册 -->
+      <form id="view-register" class="auth-view" autocomplete="off" hidden>
+        <label class="field">
+          <span>邮箱</span>
+          <input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+        </label>
+        <div class="field">
+          <span>邮箱验证码</span>
+          <div class="code-row">
+            <input class="input" name="code" inputmode="numeric" maxlength="4" required placeholder="4 位验证码" />
+            <button type="button" class="btn send-btn" data-send="register">获取验证码</button>
+          </div>
+        </div>
+        <label class="field">
+          <span>设置密码</span>
+          <input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="至少 8 位" />
+        </label>
+        <button class="btn btn-primary submit-btn" type="submit">注册并进入</button>
+        <p class="tip">首次注册的用户将自动成为管理员 · 每个用户拥有独立书架</p>
+      </form>
+
+      <!-- 找回密码 -->
+      <form id="view-forgot" class="auth-view" autocomplete="off" hidden>
+        <label class="field">
+          <span>注册邮箱</span>
+          <input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+        </label>
+        <div class="field">
+          <span>邮箱验证码</span>
+          <div class="code-row">
+            <input class="input" name="code" inputmode="numeric" maxlength="4" required placeholder="4 位验证码" />
+            <button type="button" class="btn send-btn" data-send="reset">获取验证码</button>
+          </div>
+        </div>
+        <label class="field">
+          <span>新密码</span>
+          <input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="至少 8 位" />
+        </label>
+        <button class="btn btn-primary submit-btn" type="submit">重置并登录</button>
+        <p class="mini-actions"><a href="#" id="to-login">返回登录</a></p>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
