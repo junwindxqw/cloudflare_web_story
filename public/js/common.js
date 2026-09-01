@@ -24,6 +24,14 @@ export function bookPath(id, sub = '') {
   return '/api/books/' + encodeURIComponent(clean) + (sub ? '/' + sub : '');
 }
 
+// 从 /read/:id（兼容 ?id=）解析并校验书籍 ID；无有效 ID 返回 null
+export function bookIdFromLocation() {
+  const m = location.pathname.match(/^\/read\/([\w-]{1,64})/);
+  if (m) return m[1];
+  const q = new URLSearchParams(location.search).get('id');
+  return q && /^[\w-]{1,64}$/.test(q) ? q : null;
+}
+
 /* ---------- 主题 ---------- */
 const THEME_KEY = 'ws_theme';
 export function getTheme() {

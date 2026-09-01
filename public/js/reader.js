@@ -1,9 +1,9 @@
 // 阅读器编排：通用 UI（进度条、目录、设置）+ 按格式分发到具体渲染模块
-import { api, toast } from './common.js';
+import { api, bookIdFromLocation, toast } from './common.js';
 
-// 从 /read/:id 路径提取书籍 ID
+// 从 /read/:id 路径提取书籍 ID（解析与白名单校验在 common.js 中完成）
 const OK_ID = /^[\w-]{1,64}$/;
-const id = location.pathname.match(/^\/read\/([\w-]+)/)?.[1] || new URLSearchParams(location.search).get('id');
+const id = bookIdFromLocation();
 if (!id) location.replace('/');
 
 const $ = (s) => document.querySelector(s);
