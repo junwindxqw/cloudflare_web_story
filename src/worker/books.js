@@ -65,7 +65,7 @@ async function listBooks(env, user) {
   await ensureSchema(env.DB);
   const { results } = await env.DB.prepare(
     `SELECT * FROM books WHERE user_id = ?1
-     ORDER BY CASE WHEN last_read_at IS NULL THEN 0 ELSE 1 END, last_read_at DESC, added_at DESC`
+     ORDER BY CASE WHEN last_read_at IS NULL THEN 1 ELSE 0 END, last_read_at DESC, added_at DESC`
   )
     .bind(user.id)
     .all();
