@@ -29,7 +29,7 @@
   ],
   "vars": {
     // 发件人（需 Resend 已验证的域名），例如 "书阁 <noreply@your-domain.com>"
-    "MAIL_FROM": "书阁 <noreply@your-domain.com>",
+    "MAIL_FROM": "书阁 <noreply@send.junwind.site>",
     // 本地调试：为 "true" 时验证码会同时返回在接口响应中。部署到线上必须保持 false！
     "DEV_SHOW_CODE": "false",
     // 单次上传大小上限（MB），Cloudflare 免费版请求体上限为 100MB
