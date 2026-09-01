@@ -24,7 +24,7 @@
       "binding": "DB",
       "database_name": "web-story-db",
       // 手动部署时运行 `npm run setup` 会自动创建并回填此 ID
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "ff123b92-5db1-4761-b80e-2b6c13062904"
     }
   ],
   "vars": {

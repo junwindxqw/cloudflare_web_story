@@ -11,7 +11,8 @@ const configPath = join(root, 'wrangler.jsonc');
 function wrangler(args, label) {
   console.log(`\n==> ${label}`);
   const r = spawnSync('npx', ['wrangler', ...args], { cwd: root, encoding: 'utf8', shell: process.platform === 'win32' });
-  const out = (r.stdout || '') + (r.stderr || '');
+  // 去掉 ANSI 颜色码，避免干扰后续输出解析
+  const out = ((r.stdout || '') + (r.stderr || '')).replace(/\x1B\[[0-9;]*[A-Za-z]/g, '');
   console.log(out.trim());
   if (r.status !== 0 && !/already exists/i.test(out)) {
     throw new Error(`${label} 失败，请检查 wrangler 登录状态`);
