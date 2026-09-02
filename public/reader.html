@@ -72,6 +72,22 @@
           <button id="font-plus">A+</button>
         </div>
       </div>
+      <div class="sheet-row" id="lh-row">
+        <span class="sheet-label">行距</span>
+        <div class="seg" id="lh-seg">
+          <button data-lh="1.6">紧凑</button>
+          <button data-lh="1.9">标准</button>
+          <button data-lh="2.2">宽松</button>
+        </div>
+      </div>
+      <div class="sheet-row" id="fam-row">
+        <span class="sheet-label">字体</span>
+        <div class="seg" id="fam-seg">
+          <button data-fam="default">默认</button>
+          <button data-fam="serif">宋体</button>
+          <button data-fam="sans">黑体</button>
+        </div>
+      </div>
       <div class="sheet-row" id="zoom-row" hidden>
         <span class="sheet-label">缩放</span>
         <div class="stepper">
@@ -79,6 +95,10 @@
           <span id="zoom-label">适配</span>
           <button id="zoom-in">+</button>
         </div>
+      </div>
+      <div class="sheet-row" id="wake-row">
+        <span class="sheet-label">保持屏幕常亮</span>
+        <button id="wake-toggle" class="switch" role="switch" aria-checked="false" aria-label="保持屏幕常亮"></button>
       </div>
     </div>
     <div id="sheet-mask" hidden></div>

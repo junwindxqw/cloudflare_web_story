@@ -33,9 +33,15 @@
         </div>
       </div>
       <div class="topbar-actions">
-        <div class="search-box">
+        <button class="icon-btn search-toggle" id="search-toggle" title="搜索" aria-label="搜索">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        </button>
+        <div class="search-box" id="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input id="search-input" class="input" type="search" placeholder="搜索书名或作者" />
+          <button class="icon-btn search-close" id="search-close" type="button" aria-label="收起搜索">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
         <button class="btn" id="upload-btn-top">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -57,6 +63,19 @@
   </header>
 
   <main class="shelf-main">
+    <section id="resume-strip" class="resume-strip" hidden>
+      <a id="resume-card" class="resume-card" href="#" aria-label="继续阅读">
+        <div class="resume-cover"></div>
+        <div class="resume-meta">
+          <span class="resume-label">继续阅读</span>
+          <strong class="resume-title"></strong>
+          <div class="resume-progress"><i></i><span class="resume-pct"></span></div>
+        </div>
+        <button class="resume-go" type="button" aria-label="继续阅读">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+        </button>
+      </a>
+    </section>
     <div id="book-grid" class="book-grid"></div>
     <div id="empty-state" class="empty-state" hidden>
       <svg viewBox="0 0 200 160" aria-hidden="true">

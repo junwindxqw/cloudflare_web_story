@@ -27,6 +27,33 @@
 .field { display: block; margin-bottom: 16px; }
 .field span { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
 
+/* 密码框右侧显示/隐藏按钮 */
+.pwd-row { position: relative; }
+.pwd-row .input { padding-right: 44px; }
+.pwd-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/></svg>");
+  background-size: 20px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.pwd-toggle:hover { background-color: var(--surface-2); color: var(--text); }
+.pwd-toggle.show {
+  color: var(--primary);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17.94 17.94A10.06 10.06 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 4.42-5.43M9.9 4.24A10.45 10.45 0 0 1 12 4c6.5 0 10 7 10 7a18.4 18.4 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24'/><path d='M2 2l20 20'/></svg>");
+}
+
 /* 视图切换标签 */
 .tabs {
   display: grid;
@@ -63,10 +90,9 @@
   padding: 8px 12px;
 }
 
-/* 验证码行 */
-.code-row { display: flex; gap: 10px; }
-.code-row .input { flex: 1; letter-spacing: 4px; font-size: 18px; text-align: center; }
-.send-btn { flex: none; min-width: 108px; white-space: nowrap; }
+/* 验证码：全宽发送按钮 + 独立大号输入框（提高特异性以覆盖 base 的 16px 防缩放规则） */
+.send-btn.full { width: 100%; padding: 11px; font-size: 15px; }
+.auth-view .input.code-input { letter-spacing: 6px; font-size: 22px; text-align: center; padding: 13px 14px; margin-top: 8px; }
 .send-btn[disabled] { opacity: 0.55; pointer-events: none; }
 
 .submit-btn { width: 100%; padding: 12px; font-size: 15px; border-radius: 12px; margin-top: 4px; }

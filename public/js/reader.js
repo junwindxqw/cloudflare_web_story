@@ -22,6 +22,9 @@ const sheetMask = $('#sheet-mask');
 
 const THEME_KEY = 'ws_rtheme';
 const FONT_KEY = 'ws_rfont';
+const LH_KEY = 'ws_rlh';
+const FAM_KEY = 'ws_rfam';
+const WAKE_KEY = 'ws_rwake';
 
 let book = null;
 let mod = null; // 当前格式模块
@@ -36,7 +39,20 @@ export function getReaderTheme() {
 }
 export function getFontSize() {
   const n = Number(localStorage.getItem(FONT_KEY));
-  return n >= 14 && n <= 30 ? n : 18;
+  if (n >= 14 && n <= 30) return n;
+  // 未设置时：手机端默认 20（让小屏正文更易读），桌面端 18
+  return Math.min(innerWidth || 1024, 720) < 720 ? 20 : 18;
+}
+export function getLineHeight() {
+  const n = Number(localStorage.getItem(LH_KEY));
+  return n === 1.6 || n === 2.2 ? n : 1.9;
+}
+// 返回字体栈；'默认' 返回空串表示不干预书籍自带字体
+export function getFontFamily() {
+  const v = localStorage.getItem(FAM_KEY);
+  if (v === 'serif') return '"Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif';
+  if (v === 'sans') return '"Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  return '';
 }
 
 const ctx = {
@@ -45,6 +61,8 @@ const ctx = {
   host: viewer,
   getTheme: getReaderTheme,
   getFontSize,
+  getLineHeight,
+  getFontFamily,
   // 渲染模块汇报进度
   progress({ fraction = 0, location = {}, label, tocCurrent }) {
     current.fraction = Math.max(0, Math.min(1, fraction));
@@ -65,8 +83,11 @@ const ctx = {
   setZoomLabel(text) {
     $('#zoom-label').textContent = text;
   },
-  showFontRow(show) {
+  // 字号 / 行距 / 字体三行随格式一并显示（PDF 等固定版式不显示）
+  showTextRows(show) {
     $('#font-row').hidden = !show;
+    $('#lh-row').hidden = !show;
+    $('#fam-row').hidden = !show;
   },
   showZoomRow(show) {
     $('#zoom-row').hidden = !show;
@@ -101,6 +122,35 @@ function toggleChrome() {
   app.classList.toggle('chrome-hidden');
 }
 
+/* 移动端：从屏幕顶部下拉 24px 以上呼出隐藏的工具栏（不触发点击翻页） */
+let swipeStartY = null;
+let swipeStartT = 0;
+addEventListener(
+  'touchstart',
+  (e) => {
+    if (e.touches.length !== 1) return;
+    swipeStartY = e.touches[0].clientY;
+    swipeStartT = Date.now();
+  },
+  { passive: true }
+);
+addEventListener(
+  'touchend',
+  (e) => {
+    if (swipeStartY == null || innerWidth > 720) {
+      swipeStartY = null;
+      return;
+    }
+    const endY = e.changedTouches[0]?.clientY ?? swipeStartY;
+    const dy = endY - swipeStartY;
+    if (swipeStartY < 80 && dy > 24 && Date.now() - swipeStartT < 600) {
+      app.classList.remove('chrome-hidden');
+    }
+    swipeStartY = null;
+  },
+  { passive: true }
+);
+
 slider.addEventListener('input', () => {
   dragging = true;
   labelEl.textContent = Math.round((slider.value / 1000) * 100) + '%';
@@ -123,22 +173,45 @@ $('#back-btn').addEventListener('click', () => {
 tocBtn.addEventListener('click', openDrawer);
 $('#toc-close').addEventListener('click', closeDrawer);
 drawerMask.addEventListener('click', closeDrawer);
+function hideSheet() {
+  sheet.hidden = true;
+  sheetMask.hidden = true;
+}
 settingsBtn.addEventListener('click', () => {
   sheet.hidden = !sheet.hidden;
   sheetMask.hidden = sheet.hidden;
 });
-sheetMask.addEventListener('click', () => {
-  sheet.hidden = true;
-  sheetMask.hidden = true;
-});
+sheetMask.addEventListener('click', hideSheet);
 addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
-  if (e.key === 'ArrowLeft') mod?.prev();
-  else if (e.key === 'ArrowRight') mod?.next();
-  else if (e.key === 'Escape') {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  // 空格 / 回车保留按钮、链接自身的激活行为
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.closest?.('button, a')) return;
+  if (e.key === 'Escape') {
     closeDrawer();
-    sheet.hidden = true;
-    sheetMask.hidden = true;
+    hideSheet();
+    return;
+  }
+  if (!sheet.hidden) return;
+  switch (e.key) {
+    case 'ArrowLeft':
+    case 'PageUp':
+      e.preventDefault();
+      mod?.prev();
+      break;
+    case 'ArrowRight':
+    case 'PageDown':
+    case ' ':
+      e.preventDefault();
+      mod?.next();
+      break;
+    case 'Home':
+      e.preventDefault();
+      mod?.jumpToFraction(0);
+      break;
+    case 'End':
+      e.preventDefault();
+      mod?.jumpToFraction(1);
+      break;
   }
 });
 
@@ -200,21 +273,87 @@ function stepFont(d) {
   const n = Math.max(14, Math.min(30, getFontSize() + d));
   localStorage.setItem(FONT_KEY, String(n));
   $('#font-size-label').textContent = n;
-  mod?.applyFontSize();
+  mod?.applyTextStyle();
+}
+$('#lh-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-lh]');
+  if (!btn) return;
+  localStorage.setItem(LH_KEY, btn.dataset.lh);
+  syncTextPrefsUI();
+  mod?.applyTextStyle();
+  toast('行距已调整');
+});
+$('#fam-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-fam]');
+  if (!btn) return;
+  localStorage.setItem(FAM_KEY, btn.dataset.fam);
+  syncTextPrefsUI();
+  mod?.applyTextStyle();
+  toast('字体已切换');
+});
+function syncTextPrefsUI() {
+  const lh = String(getLineHeight());
+  for (const b of document.querySelectorAll('#lh-seg button')) {
+    b.classList.toggle('active', b.dataset.lh === lh);
+  }
+  const fam = localStorage.getItem(FAM_KEY) || 'default';
+  for (const b of document.querySelectorAll('#fam-seg button')) {
+    b.classList.toggle('active', b.dataset.fam === fam);
+  }
 }
 $('#zoom-in').addEventListener('click', () => mod?.zoomIn?.());
 $('#zoom-out').addEventListener('click', () => mod?.zoomOut?.());
 
+/* ---------- 屏幕常亮（Wake Lock） ---------- */
+let wakeLock = null;
+async function syncWakeLock() {
+  const want = localStorage.getItem(WAKE_KEY) === '1' && 'wakeLock' in navigator;
+  try {
+    if (want && !wakeLock && document.visibilityState === 'visible') {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => (wakeLock = null));
+    } else if (!want && wakeLock) {
+      await wakeLock.release();
+    }
+  } catch {
+    /* 系统拒绝或不支持时静默跳过 */
+  }
+}
+$('#wake-toggle').addEventListener('click', () => {
+  if (!('wakeLock' in navigator)) {
+    toast('当前浏览器不支持屏幕常亮', 'error');
+    return;
+  }
+  const on = localStorage.getItem(WAKE_KEY) !== '1';
+  localStorage.setItem(WAKE_KEY, on ? '1' : '0');
+  syncWakeUI();
+  syncWakeLock();
+  toast(on ? '阅读期间屏幕将保持常亮' : '已关闭屏幕常亮');
+});
+function syncWakeUI() {
+  $('#wake-toggle').setAttribute('aria-checked', String(localStorage.getItem(WAKE_KEY) === '1'));
+}
+// 页面重新可见时浏览器会要求重新申请锁
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncWakeLock();
+});
+
 function applyReaderTheme() {
-  document.body.dataset.rtheme = getReaderTheme();
+  const t = getReaderTheme();
+  document.body.dataset.rtheme = t;
+  // 移动端浏览器地址栏 / 状态栏颜色跟随阅读背景
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', { light: '#ffffff', sepia: '#f4ecd8', dark: '#15171c' }[t]);
   for (const b of document.querySelectorAll('#theme-dots button')) {
-    b.classList.toggle('active', b.dataset.rtheme === getReaderTheme());
+    b.classList.toggle('active', b.dataset.rtheme === t);
   }
 }
 
 /* ---------- 启动 ---------- */
 async function start() {
   applyReaderTheme();
+  syncTextPrefsUI();
+  syncWakeUI();
+  syncWakeLock();
   $('#font-size-label').textContent = getFontSize();
   try {
     // ID 经白名单校验后放入参数化 JSON body，请求目标为静态常量

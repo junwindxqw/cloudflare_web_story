@@ -63,6 +63,34 @@ function render() {
   for (const book of list) {
     grid.append(cardEl(book));
   }
+  renderResume();
+}
+
+/* ---------- 继续阅读 ---------- */
+function renderResume() {
+  const strip = document.getElementById('resume-strip');
+  const card = document.getElementById('resume-card');
+  // 只展示有进度、未读完的最近一本
+  const candidates = books.filter((b) => b.progress > 0 && b.progress < 1 && b.lastReadAt);
+  if (!candidates.length) {
+    strip.hidden = true;
+    return;
+  }
+  const target = [...candidates].sort((a, b) => (b.lastReadAt || 0) - (a.lastReadAt || 0))[0];
+  strip.hidden = false;
+  card.dataset.id = target.id;
+  card.href = `/read/${target.id}`;
+  card.querySelector('.resume-title').textContent = target.title;
+  card.querySelector('.resume-pct').textContent = `读到 ${Math.round(target.progress * 100)}%`;
+  card.querySelector('.resume-progress i').style.width = Math.round(target.progress * 100) + '%';
+  const coverEl = card.querySelector('.resume-cover');
+  coverEl.textContent = '';
+  const img = document.createElement('img');
+  img.alt = target.title;
+  img.src = target.hasCover ? `/api/books/${target.id}/cover` : '';
+  if (!target.hasCover) fillGeneratedCover(img, target);
+  img.onerror = () => fillGeneratedCover(img, target);
+  coverEl.append(img);
 }
 
 function cardEl(book) {
@@ -137,13 +165,31 @@ function cardEl(book) {
   card.addEventListener('click', () => {
     location.href = `/read/${book.id}`;
   });
-  // 移动端长按 = 菜单
+  // 移动端长按 = 菜单：触发距离 > 12px 视为滚动，立即取消，避免误触
   let pressTimer;
-  card.addEventListener('touchstart', () => {
-    pressTimer = setTimeout(() => openMenu(book, menuBtn), 500);
+  let pressStart = null;
+  const PRESS_MS = 700;
+  const PRESS_SLOP = 12;
+  card.addEventListener('touchstart', (e) => {
+    pressStart = e.touches[0];
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      openMenu(book, menuBtn);
+    }, PRESS_MS);
   }, { passive: true });
-  card.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
-  card.addEventListener('touchend', () => clearTimeout(pressTimer));
+  card.addEventListener('touchmove', (e) => {
+    if (!pressStart || !pressTimer) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - pressStart.clientX) > PRESS_SLOP || Math.abs(t.clientY - pressStart.clientY) > PRESS_SLOP) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  }, { passive: true });
+  card.addEventListener('touchend', () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+    pressStart = null;
+  });
   card.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     openMenu(book, menuBtn);
@@ -270,6 +316,25 @@ function bindEvents() {
     filterText = e.target.value.trim();
     render();
   });
+  // 移动端搜索切换：点击放大镜展开搜索框；点 × 收起；收起时若已有过滤词则清空
+  const searchToggle = document.getElementById('search-toggle');
+  const searchBox = document.getElementById('search-box');
+  const searchClose = document.getElementById('search-close');
+  const searchInput = document.getElementById('search-input');
+  if (searchToggle && searchBox) {
+    searchToggle.addEventListener('click', () => {
+      searchBox.classList.add('open');
+      searchInput.focus();
+    });
+    searchClose.addEventListener('click', () => {
+      searchBox.classList.remove('open');
+      if (filterText) {
+        searchInput.value = '';
+        filterText = '';
+        render();
+      }
+    });
+  }
   fileInput.addEventListener('change', () => {
     handleFiles([...fileInput.files]);
     fileInput.value = '';

@@ -69,7 +69,8 @@ export async function init(ctx) {
     content.style.color = t.fg;
     fontSize = ctx.getFontSize();
     content.style.fontSize = fontSize + 'px';
-    content.style.lineHeight = 1.9;
+    content.style.lineHeight = ctx.getLineHeight();
+    content.style.fontFamily = ctx.getFontFamily();
     const w = stage.clientWidth - 32;
     content.style.width = w + 'px';
     content.style.columnWidth = w + 'px';
@@ -89,7 +90,8 @@ export async function init(ctx) {
   }
 
   function report(label) {
-    const frac = totalPages > 1 ? (page + 1) / totalPages : 1;
+    // 首页 0%、末页 100%，与 foliate 引擎一致；续读按比例恢复也因此更准
+    const frac = totalPages > 1 ? page / (totalPages - 1) : 0;
     ctx.progress({
       fraction: frac,
       location: { page, total: totalPages, fraction: frac },
@@ -142,7 +144,7 @@ export async function init(ctx) {
   }, { passive: true });
 
   // 字号 / 主题 / 尺寸变化
-  ctx.showFontRow(true);
+  ctx.showTextRows(true);
   ctx.showZoomRow(false);
   const ro = new ResizeObserver(() => {
     const frac = totalPages > 1 ? page / (totalPages - 1) : 0;
@@ -168,7 +170,7 @@ export async function init(ctx) {
       applyStyle();
       render();
     },
-    applyFontSize() {
+    applyTextStyle() {
       const frac = totalPages > 1 ? page / (totalPages - 1) : 0;
       applyStyle();
       recompute();

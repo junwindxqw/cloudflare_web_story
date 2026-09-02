@@ -10,15 +10,18 @@ body.reader-page { overflow: hidden; }
   --chrome-bg: color-mix(in srgb, #ffffff 88%, transparent);
   --chrome-text: #1d2129;
   --chrome-line: rgba(0, 0, 0, 0.08);
+  --sheet-bg: color-mix(in srgb, #ffffff 96%, transparent);
 }
 [data-rtheme="sepia"] .reader-app {
   --chrome-bg: color-mix(in srgb, #f4ecd8 90%, transparent);
+  --sheet-bg: color-mix(in srgb, #f4ecd8 96%, transparent);
   --chrome-text: #5b4636;
   --chrome-line: rgba(91, 70, 54, 0.15);
   background: #f4ecd8;
 }
 [data-rtheme="dark"] .reader-app {
   --chrome-bg: color-mix(in srgb, #15171c 90%, transparent);
+  --sheet-bg: color-mix(in srgb, #2a2d34 96%, transparent);
   --chrome-text: #b8bdc7;
   --chrome-line: rgba(255, 255, 255, 0.08);
   background: #15171c;
@@ -130,6 +133,33 @@ body.reader-page { overflow: hidden; }
   background: var(--chrome-text);
   border: none;
 }
+
+/* 移动端：触控热区加大、字号更醒目、设置面板变底部抽屉 */
+@media (max-width: 720px) {
+  .chrome { padding: 10px 12px; gap: 8px; }
+  .chrome .icon-btn { width: 42px; height: 42px; }
+  #progress-slider { height: 6px; }
+  #progress-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+  #progress-slider::-moz-range-thumb { width: 22px; height: 22px; }
+  #progress-label { font-size: 13px; min-width: 56px; }
+  #settings-sheet {
+    left: 12px;
+    right: 12px;
+    bottom: 76px;
+    max-width: none;
+    width: auto;
+    transform: none;
+    animation: sheet-up 0.2s ease;
+    padding: 14px 16px 16px;
+  }
+  @keyframes sheet-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: none; }
+  }
+  #sheet-mask { background: rgba(0, 0, 0, 0.35); }
+  .sheet-row { font-size: 14px; padding: 6px 0; }
+  .seg button { min-width: 56px; height: 38px; font-size: 13px; }
+}
 #progress-label {
   font-size: 12px;
   color: var(--chrome-text);
@@ -206,7 +236,7 @@ body.reader-page { overflow: hidden; }
   bottom: 70px;
   transform: translateX(-50%);
   z-index: 48;
-  background: var(--chrome-bg);
+  background: var(--sheet-bg);
   backdrop-filter: blur(16px);
   border: 1px solid var(--chrome-line);
   border-radius: 16px;
@@ -217,6 +247,8 @@ body.reader-page { overflow: hidden; }
   gap: 12px;
   min-width: 280px;
   max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
   color: var(--chrome-text);
   animation: sheet-in 0.18s ease;
 }
@@ -264,6 +296,53 @@ body.reader-page { overflow: hidden; }
 .stepper button:active { transform: scale(0.95); }
 .stepper span { min-width: 44px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
 
+/* 分段选择（行距 / 字体） */
+.seg {
+  display: flex;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.seg button {
+  min-width: 52px;
+  height: 32px;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.seg button + button { border-left: 1px solid rgba(128, 128, 128, 0.25); }
+.seg button.active { background: var(--primary, #5a63e8); color: #fff; }
+
+/* 开关（屏幕常亮） */
+.switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: 99px;
+  border: none;
+  background: rgba(128, 128, 128, 0.35);
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+.switch[aria-checked="true"] { background: var(--primary, #5a63e8); }
+.switch[aria-checked="true"]::after { transform: translateX(18px); }
+
 /* TXT 内容样式（由 JS 控制字号与配色） */
 #txt-content {
   height: 100%;
@@ -293,7 +372,10 @@ body.reader-page { overflow: hidden; }
   -webkit-overflow-scrolling: touch;
   background: #525659;
 }
-[data-rtheme="dark"] #pdf-scroll { background: #1a1c20; }
+[data-rtheme="dark"] #pdf-scroll { background: #15171c; }
+/* 夜间模式下 PDF 页面反色：亮底变暗、保持图片色彩大致自然 */
+[data-rtheme="dark"] .pdf-page { background: transparent; }
+[data-rtheme="dark"] .pdf-page canvas { filter: invert(0.92) hue-rotate(180deg); }
 .pdf-page {
   position: relative;
   margin: 0 auto 10px;

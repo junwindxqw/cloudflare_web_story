@@ -89,6 +89,16 @@ for (const btn of document.querySelectorAll('.send-btn')) {
   btn.addEventListener('click', () => sendCode(btn.dataset.send, btn.closest('form'), btn));
 }
 
+/* ---------- 密码显示/隐藏 ---------- */
+for (const btn of document.querySelectorAll('.pwd-toggle')) {
+  const input = btn.parentElement.querySelector('input[name="password"]');
+  btn.addEventListener('click', () => {
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.classList.toggle('show', show);
+  });
+}
+
 /* ---------- 登录 ---------- */
 document.getElementById('view-login').addEventListener('submit', async (e) => {
   e.preventDefault();

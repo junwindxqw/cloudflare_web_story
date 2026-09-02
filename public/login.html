@@ -41,11 +41,14 @@
       <form id="view-login" class="auth-view" autocomplete="on" hidden>
         <label class="field">
           <span>邮箱</span>
-          <input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          <input class="input" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com" />
         </label>
         <label class="field">
           <span>密码</span>
-          <input class="input" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码" />
+          <div class="pwd-row">
+            <input class="input" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码" />
+            <button type="button" class="pwd-toggle" data-target="view-login" aria-label="显示或隐藏密码"></button>
+          </div>
         </label>
         <button class="btn btn-primary submit-btn" type="submit">进入书房</button>
         <p class="mini-actions"><a href="#" id="to-forgot">忘记密码？</a></p>
@@ -55,18 +58,19 @@
       <form id="view-register" class="auth-view" autocomplete="off" hidden>
         <label class="field">
           <span>邮箱</span>
-          <input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          <input class="input" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com" />
         </label>
         <div class="field">
           <span>邮箱验证码</span>
-          <div class="code-row">
-            <input class="input" name="code" inputmode="numeric" maxlength="4" required placeholder="4 位验证码" />
-            <button type="button" class="btn send-btn" data-send="register">获取验证码</button>
-          </div>
+          <button type="button" class="btn send-btn full" data-send="register">获取验证码</button>
+          <input class="input code-input" name="code" inputmode="numeric" maxlength="4" required placeholder="4 位验证码" />
         </div>
         <label class="field">
           <span>设置密码</span>
-          <input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="至少 8 位" />
+          <div class="pwd-row">
+            <input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="至少 8 位" />
+            <button type="button" class="pwd-toggle" data-target="view-register" aria-label="显示或隐藏密码"></button>
+          </div>
         </label>
         <button class="btn btn-primary submit-btn" type="submit">注册并进入</button>
         <p class="tip">首次注册的用户将自动成为管理员 · 每个用户拥有独立书架</p>
@@ -76,18 +80,19 @@
       <form id="view-forgot" class="auth-view" autocomplete="off" hidden>
         <label class="field">
           <span>注册邮箱</span>
-          <input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          <input class="input" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com" />
         </label>
         <div class="field">
           <span>邮箱验证码</span>
-          <div class="code-row">
-            <input class="input" name="code" inputmode="numeric" maxlength="4" required placeholder="4 位验证码" />
-            <button type="button" class="btn send-btn" data-send="reset">获取验证码</button>
-          </div>
+          <button type="button" class="btn send-btn full" data-send="reset">获取验证码</button>
+          <input class="input code-input" name="code" inputmode="numeric" maxlength="4" required placeholder="4 位验证码" />
         </div>
         <label class="field">
           <span>新密码</span>
-          <input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="至少 8 位" />
+          <div class="pwd-row">
+            <input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="至少 8 位" />
+            <button type="button" class="pwd-toggle" data-target="view-forgot" aria-label="显示或隐藏密码"></button>
+          </div>
         </label>
         <button class="btn btn-primary submit-btn" type="submit">重置并登录</button>
         <p class="mini-actions"><a href="#" id="to-login">返回登录</a></p>

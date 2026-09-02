@@ -33,7 +33,8 @@ export async function init(ctx) {
   let css = '';
   function styleCss() {
     const t = RTHEME[ctx.getTheme()] || RTHEME.light;
-    css = `body { background: ${t.bg} !important; color: ${t.fg} !important; font-size: ${ctx.getFontSize()}px; }`;
+    const fam = ctx.getFontFamily();
+    css = `body { background: ${t.bg} !important; color: ${t.fg} !important; font-size: ${ctx.getFontSize()}px; line-height: ${ctx.getLineHeight()} !important;${fam ? ` font-family: ${fam} !important;` : ''} }`;
     view.renderer?.setStyles?.(css);
   }
   styleCss();
@@ -50,15 +51,17 @@ export async function init(ctx) {
       tocCurrent: d.tocItem?.href,
     });
   });
-  // 每个章节加载后重新应用样式，并接管中间点击
+  // 每个章节加载后重新应用样式，并接管点击翻页：左/右 1/3 翻页，中间呼出工具栏
   view.addEventListener('load', ({ detail }) => {
     view.renderer?.setStyles?.(css);
     detail?.doc?.addEventListener('click', (e) => {
+      // 链接（含书内脚注跳转）交给 view.js 内置处理
+      if (e.target.closest?.('a[href]')) return;
       const w = detail.doc.defaultView?.innerWidth || innerWidth;
       const x = e.clientX ?? w / 2;
-      if (x >= w * 0.3 && x <= w * 0.7) {
-        ctx.host.closest('.reader-app')?.classList.toggle('chrome-hidden');
-      }
+      if (x < w * 0.3) view.prev();
+      else if (x > w * 0.7) view.next();
+      else ctx.host.closest('.reader-app')?.classList.toggle('chrome-hidden');
     });
   });
 
@@ -73,7 +76,7 @@ export async function init(ctx) {
   walk(fbook.toc, 0);
   ctx.setToc(items.filter((i) => i.label && i.target != null));
 
-  ctx.showFontRow(true);
+  ctx.showTextRows(true);
   ctx.showZoomRow(false);
 
   const modApi = {
@@ -88,7 +91,7 @@ export async function init(ctx) {
     applyTheme() {
       styleCss();
     },
-    applyFontSize() {
+    applyTextStyle() {
       styleCss();
     },
   };

@@ -119,6 +119,8 @@ a { color: var(--primary); text-decoration: none; }
   outline: none;
   transition: border 0.15s ease, box-shadow 0.15s ease;
 }
+/* iOS 输入时若字号 < 16px 会自动放大页面；锁定为 16px 避免配合 viewport meta=1 时整页跳大 */
+.auth-view .input { font-size: 16px; }
 .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .input::placeholder { color: var(--text-3); }
 

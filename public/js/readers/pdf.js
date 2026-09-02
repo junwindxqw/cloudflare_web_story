@@ -172,9 +172,9 @@ export async function init(ctx) {
       /* PDF 无目录 */
     },
     applyTheme() {
-      /* PDF 页面保持白底，主题只影响外壳 */
+      /* PDF 页面保持白底，主题只影响外壳（夜间反色由 CSS 按 body 主题属性生效） */
     },
-    applyFontSize() {
+    applyTextStyle() {
       /* 无关 */
     },
     zoomIn() {
@@ -212,7 +212,7 @@ export async function init(ctx) {
   }
 
   ctx.setZoomLabel(zoomLabel());
-  ctx.showFontRow(false);
+  ctx.showTextRows(false);
   ctx.showZoomRow(true);
   return modApi;
 }
