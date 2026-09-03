@@ -89,6 +89,8 @@ flowchart LR
 5. 部署完成后，在 Worker 设置中添加 Secret：`wrangler secret put RESEND_API_KEY`（邮件服务密钥，见下文）
 6. 访问分配的 `*.workers.dev` 域名，**第一个注册的账号自动成为管理员**
 
+> 💡 **绑定自定义域名**：若想用自有域名（如 `story.junwind.site`），进入 Cloudflare Dashboard → Workers & Pages → 选中本 Worker → Settings → Triggers → Custom Domains → Set up a custom domain，填入子域即可。Cloudflare 会自动添加 DNS 记录并签发证书，无需修改 `wrangler.jsonc`。
+
 ### 方式二：命令行部署
 
 ```bash
