@@ -141,3 +141,19 @@ export function debounce(fn, ms) {
 export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
+
+/* ---------- 题材分类 ----------
+ * 与 src/worker/books.js 中的 CATEGORIES 镜像一致；任一改动请同步 */
+export const CATEGORIES = [
+  { id: 'novel',     label: '小说' },
+  { id: 'scifi',     label: '科幻' },
+  { id: 'history',   label: '历史' },
+  { id: 'computer',  label: '计算机' },
+  { id: 'reference', label: '工具书' },
+  { id: 'literature',label: '散文' },
+  { id: 'magazine',  label: '杂志' },
+  { id: 'other',     label: '其他' },
+];
+export function categoryLabel(id) {
+  return CATEGORIES.find((c) => c.id === id)?.label ?? '其他';
+}

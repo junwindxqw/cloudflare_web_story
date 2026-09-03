@@ -63,6 +63,48 @@
 
 .shelf-main { max-width: 1200px; margin: 0 auto; padding: 24px 20px 120px; }
 
+/* 分类筛选条 */
+.category-bar {
+  max-width: 1200px;
+  margin: 12px auto 0;
+  padding: 0 20px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+.category-chip {
+  flex: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  font-family: inherit;
+}
+.category-chip:hover { color: var(--text); border-color: var(--primary); }
+.category-chip.active {
+  background: var(--gradient);
+  color: #fff;
+  border-color: transparent;
+}
+.category-chip .count {
+  opacity: 0.65;
+  margin-left: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 分类选择器（在书籍菜单中复用 context-menu 样式） */
+.category-picker { min-width: 160px; }
+.category-picker button i { margin-left: auto; font-style: normal; color: var(--primary); }
+/* 取消按钮：继承 context-menu 普通按钮样式，不被 .danger 染红 */
+.category-picker button.category-cancel { color: var(--text-2); }
+
 /* 继续阅读条 */
 .resume-strip { margin: 4px 4px 20px; }
 .resume-card {
@@ -337,6 +379,9 @@
   /* 顶栏信息精简：邮箱 chip 移到头像菜单；上下文中由 hash 决定 */
   #user-chip { display: none; }
   #upload-btn-top { display: none; }
+  #classify-btn-top { display: none; }
+  .category-bar { padding: 0 14px; }
+  .category-chip { padding: 5px 10px; font-size: 12px; }
   .book-grid { grid-template-columns: repeat(3, 1fr); gap: 18px 12px; }
   .book-title { font-size: 13px; }
   .book-author { font-size: 11px; }

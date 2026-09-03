@@ -47,6 +47,9 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
           导入
         </button>
+        <button class="icon-btn" id="classify-btn-top" title="一键自动分类" aria-label="一键自动分类">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/></svg>
+        </button>
         <span id="user-chip" hidden>
           <span id="user-email"></span>
           <i id="user-role" hidden>管理员</i>
@@ -61,6 +64,8 @@
       </div>
     </div>
   </header>
+
+  <nav id="category-bar" class="category-bar" hidden></nav>
 
   <main class="shelf-main">
     <section id="resume-strip" class="resume-strip" hidden>

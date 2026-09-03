@@ -13,6 +13,40 @@ const FORMATS = {
   cbz: 'application/vnd.comicbook+zip',
 };
 
+// 题材分类（与 public/js/common.js 中的 CATEGORIES 保持镜像一致）
+const CATEGORIES = [
+  { id: 'novel',     label: '小说' },
+  { id: 'scifi',     label: '科幻' },
+  { id: 'history',   label: '历史' },
+  { id: 'computer',  label: '计算机' },
+  { id: 'reference', label: '工具书' },
+  { id: 'literature',label: '散文' },
+  { id: 'magazine',  label: '杂志' },
+  { id: 'other',     label: '其他' },
+];
+const CATEGORY_IDS = new Set(CATEGORIES.map((c) => c.id));
+const DEFAULT_CATEGORY = 'other';
+
+// 启发式规则：按顺序匹配标题/作者，命中第一条即返回
+// 顺序很重要：更具体的分类在前，避免「三体」被小说抢走
+function classifyBook({ title, author, format }) {
+  const hay = `${title || ''} ${author || ''}`.toLowerCase();
+  const rules = [
+    [/三体|刘慈欣|科幻|galactic|space opera|worm/i, 'scifi'],
+    [/javascript|typescript|python|rust|golang|\bgo\b|java\b|算法|编程|程序设计|linux|kubernetes|\bk8s\b|docker|深度学习|机器学习|人工智能|神经网络|架构|design pattern|数据库|\bsql\b|数据结构|编译原理|操作系统/i, 'computer'],
+    [/史记|资治通鉴|通鉴|战国|朝代|近代史|中国史|世界史|通史|断代史/i, 'history'],
+    [/散文|诗集|随笔|文集|札记|杂文|小品文/i, 'literature'],
+    [/周刊|月刊|杂志|\bjournal\b|\bmagazine\b|半月谈/i, 'magazine'],
+    [/手册|指南|教程|\btutorial\b|\bcookbook\b|\breference\b|\bapi\b|辞海|词典|字典|\bgrammar\b|语法|百科|词典|说明书|spec/i, 'reference'],
+    [/小说|长篇|短篇|章回|\bnovel\b|\bfiction\b|言情|玄幻|武侠|推理|悬疑|侦探|盗墓/i, 'novel'],
+  ];
+  for (const [re, id] of rules) {
+    if (re.test(hay)) return id;
+  }
+  if (format === 'pdf') return 'reference';
+  return DEFAULT_CATEGORY;
+}
+
 const ROUTE = /^\/api\/books(?:\/([\w-]+)(?:\/(file|cover|progress))?)?$/;
 const RANGE_RE = /^bytes=(\d*)-(\d*)$/;
 
@@ -32,11 +66,13 @@ export async function handleBooksApi(request, env, ctx, user) {
   // 两个数据在 body 中的专用端点（客户端调用时 URL 恒为静态，ID 走参数化校验）
   if (id === 'detail' && method === 'POST') return bookDetail(request, env, user);
   if (id === 'progress' && !sub && (method === 'PUT' || method === 'POST')) return saveProgressById(request, env, user);
+  if (id === 'classify-all' && method === 'POST') return classifyAll(env, user);
 
   if (sub === 'file' && (method === 'GET' || method === 'HEAD')) return serveFile(request, env, id, method, user);
   if (sub === 'cover' && method === 'GET') return serveCover(env, id, user);
   if (sub === 'cover' && method === 'POST') return uploadCover(request, env, id, user);
   if (sub === 'progress' && (method === 'PUT' || method === 'POST')) return saveProgress(request, env, id, user);
+  if (sub === 'category' && method === 'PUT') return updateCategory(request, env, id, user);
   if (!sub && method === 'GET') return getBook(env, id, user);
   if (!sub && method === 'DELETE') return removeBook(env, id, user);
   return json({ error: '不支持的请求方法' }, 405);
@@ -58,6 +94,7 @@ function bookRow(row) {
     progress: row.progress,
     lastReadAt: row.last_read_at,
     hasCover: Boolean(row.cover_key),
+    category: row.category || DEFAULT_CATEGORY,
   };
 }
 
@@ -106,6 +143,7 @@ async function uploadBook(request, env, user) {
   }
   const title = (url.searchParams.get('title') || '未命名书籍').trim().slice(0, 200) || '未命名书籍';
   const author = (url.searchParams.get('author') || '').trim().slice(0, 200);
+  const category = classifyBook({ title, author, format });
 
   const id = crypto.randomUUID();
   const fileKey = `books/${id}/source.${format}`;
@@ -117,10 +155,10 @@ async function uploadBook(request, env, user) {
   });
 
   await env.DB.prepare(
-    `INSERT INTO books (id, user_id, title, author, format, file_key, cover_key, size, added_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?8)`
+    `INSERT INTO books (id, user_id, title, author, format, file_key, cover_key, size, added_at, category)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?8, ?9)`
   )
-    .bind(id, user.id, title, author, format, fileKey, contentLength, Date.now())
+    .bind(id, user.id, title, author, format, fileKey, contentLength, Date.now(), category)
     .run();
 
   return json(
@@ -134,6 +172,7 @@ async function uploadBook(request, env, user) {
       progress: 0,
       lastReadAt: null,
       hasCover: false,
+      category,
     },
     201
   );
@@ -278,4 +317,42 @@ async function removeBook(env, id, user) {
   }
   await env.DB.prepare('DELETE FROM books WHERE id = ?1').bind(id).run();
   return json({ ok: true });
+}
+
+// 一键重跑分类：按当前用户的全部书重新跑启发式规则并落库
+async function classifyAll(env, user) {
+  await ensureSchema(env.DB);
+  const { results } = await env.DB.prepare(
+    'SELECT id, title, author, format FROM books WHERE user_id = ?1'
+  ).bind(user.id).all();
+  if (!results.length) return json({ updated: 0, total: 0 });
+
+  // 仅对分类会变化的书发起 UPDATE，避免无意义的写入
+  const stmts = [];
+  let updated = 0;
+  for (const row of results) {
+    const next = classifyBook(row);
+    if (next !== row.category) {
+      stmts.push(env.DB.prepare('UPDATE books SET category = ?1 WHERE id = ?2').bind(next, row.id));
+      updated += 1;
+    }
+  }
+  // db.batch 在 D1 中是事务式；分批避免单次过多
+  const BATCH = 100;
+  for (let i = 0; i < stmts.length; i += BATCH) {
+    await env.DB.batch(stmts.slice(i, i + BATCH));
+  }
+  return json({ updated, total: results.length });
+}
+
+// 单本手动改分类
+async function updateCategory(request, env, id, user) {
+  await ensureSchema(env.DB);
+  const body = await readJsonSafe(request);
+  const category = typeof body?.category === 'string' ? body.category : '';
+  if (!CATEGORY_IDS.has(category)) return json({ error: '分类无效' }, 400);
+  const row = await env.DB.prepare('SELECT id, user_id FROM books WHERE id = ?1').bind(id).first();
+  if (!row || !canAccess(user, row)) return json({ error: '书籍不存在' }, 404);
+  await env.DB.prepare('UPDATE books SET category = ?1 WHERE id = ?2').bind(category, id).run();
+  return json({ ok: true, category });
 }

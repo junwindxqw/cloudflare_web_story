@@ -1,9 +1,10 @@
-// 书架页逻辑：列表渲染、上传、删除、进度、搜索
-import { api, toast, confirmDialog, formatSize, timeAgo, initTheme, toggleTheme } from './common.js';
+// 书架页逻辑：列表渲染、上传、删除、进度、搜索、分类筛选
+import { api, toast, confirmDialog, formatSize, timeAgo, initTheme, toggleTheme, CATEGORIES } from './common.js';
 import { extractMeta, buildCoverBlob, generateCover, extOf, SUPPORTED_EXTS } from './metadata.js';
 
 let books = [];
 let filterText = '';
+let filterCategory = 'all';
 
 const grid = document.getElementById('book-grid');
 const emptyState = document.getElementById('empty-state');
@@ -48,11 +49,17 @@ function updateStats() {
 
 /* ---------- 渲染 ---------- */
 function visibleBooks() {
-  if (!filterText) return books;
-  const q = filterText.toLowerCase();
-  return books.filter(
-    (b) => b.title.toLowerCase().includes(q) || (b.author || '').toLowerCase().includes(q)
-  );
+  let list = books;
+  if (filterCategory !== 'all') {
+    list = list.filter((b) => (b.category || 'other') === filterCategory);
+  }
+  if (filterText) {
+    const q = filterText.toLowerCase();
+    list = list.filter(
+      (b) => b.title.toLowerCase().includes(q) || (b.author || '').toLowerCase().includes(q)
+    );
+  }
+  return list;
 }
 
 function render() {
@@ -64,6 +71,46 @@ function render() {
     grid.append(cardEl(book));
   }
   renderResume();
+  renderCategoryBar();
+}
+
+/* ---------- 分类筛选条 ---------- */
+function renderCategoryBar() {
+  const bar = document.getElementById('category-bar');
+  if (!bar) return;
+  bar.textContent = '';
+  // 书架为空时不显示
+  if (!books.length) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  // 统计每个分类的数量
+  const counts = new Map();
+  for (const b of books) counts.set(b.category || 'other', (counts.get(b.category || 'other') || 0) + 1);
+  const items = [{ id: 'all', label: '全部', count: books.length }];
+  // 只展示至少一本书的分类（保持横条紧凑）
+  for (const c of CATEGORIES) {
+    const n = counts.get(c.id) || 0;
+    if (n > 0) items.push({ id: c.id, label: c.label, count: n });
+  }
+  for (const it of items) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'category-chip' + (filterCategory === it.id ? ' active' : '');
+    chip.dataset.id = it.id;
+    const label = document.createElement('span');
+    label.textContent = it.label;
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = it.count;
+    chip.append(label, count);
+    chip.addEventListener('click', () => {
+      filterCategory = it.id;
+      render();
+    });
+    bar.append(chip);
+  }
 }
 
 /* ---------- 继续阅读 ---------- */
@@ -237,6 +284,23 @@ function openMenu(book, anchor) {
         }]
       : []),
     {
+      label: '修改分类',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/></svg>',
+      run: async () => {
+        const choice = await pickCategory(book.category || 'other');
+        if (!choice || choice === book.category) return;
+        await api(`/api/books/${book.id}/category`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: choice }),
+        });
+        const target = books.find((b) => b.id === book.id);
+        if (target) target.category = choice;
+        render();
+        toast('已更新分类', 'ok');
+      },
+    },
+    {
       label: '彻底删除',
       danger: true,
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>',
@@ -277,6 +341,66 @@ function closeMenu() {
 }
 menuMask.addEventListener('click', closeMenu);
 
+// 分类选择器：以 context-menu 形态弹出；返回所选分类 id 或 null
+function pickCategory(currentId) {
+  return new Promise((resolve) => {
+    const mask = document.getElementById('menu-mask');
+    const list = document.createElement('div');
+    list.className = 'context-menu category-picker';
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      list.remove();
+      mask.hidden = true;
+      mask.removeEventListener('click', onMask);
+    };
+    const onMask = () => {
+      cleanup();
+      resolve(null);
+    };
+    mask.addEventListener('click', onMask);
+    for (const c of CATEGORIES) {
+      const btn = document.createElement('button');
+      if (c.id === currentId) btn.className = 'active';
+      const label = document.createElement('span');
+      label.textContent = c.label;
+      btn.append(label);
+      if (c.id === currentId) {
+        const mark = document.createElement('i');
+        mark.textContent = '✓';
+        btn.append(mark);
+      }
+      btn.addEventListener('click', () => {
+        cleanup();
+        resolve(c.id);
+      });
+      list.append(btn);
+    }
+    // 取消项（用普通样式，不要被 .danger 染红）
+    const cancel = document.createElement('button');
+    cancel.className = 'category-cancel';
+    const cancelLabel = document.createElement('span');
+    cancelLabel.textContent = '取消';
+    cancel.append(cancelLabel);
+    cancel.addEventListener('click', () => {
+      cleanup();
+      resolve(null);
+    });
+    list.append(cancel);
+
+    // 居中显示
+    document.body.append(list);
+    list.hidden = false;
+    mask.hidden = false;
+    const r = list.getBoundingClientRect();
+    const x = Math.max(8, (innerWidth - r.width) / 2);
+    const y = Math.max(8, (innerHeight - r.height) / 3);
+    list.style.left = x + 'px';
+    list.style.top = y + 'px';
+  });
+}
+
 async function removeBook(book) {
   const ok = await confirmDialog({
     title: '彻底删除这本书？',
@@ -300,6 +424,8 @@ function bindEvents() {
   document.getElementById('fab-btn').addEventListener('click', () => fileInput.click());
   document.getElementById('upload-btn-top').addEventListener('click', () => fileInput.click());
   document.getElementById('upload-btn-empty').addEventListener('click', () => fileInput.click());
+  const classifyBtn = document.getElementById('classify-btn-top');
+  if (classifyBtn) classifyBtn.addEventListener('click', classifyAll);
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
   document.getElementById('upload-close').addEventListener('click', () => {
     document.getElementById('upload-panel').hidden = true;
@@ -393,6 +519,7 @@ async function handleFiles(files) {
         progress: 0,
         lastReadAt: null,
         hasCover: true,
+        category: book.category || 'other',
       });
       render();
     } catch (e) {
@@ -400,6 +527,23 @@ async function handleFiles(files) {
       barFill.style.width = '100%';
       status.textContent = e.message || '导入失败';
     }
+  }
+}
+
+async function classifyAll() {
+  if (!books.length) return;
+  const ok = await confirmDialog({
+    title: '一键自动重分类？',
+    message: `将根据书名与作者重新识别全部 ${books.length} 本书的分类；已手动调整的书也会被覆盖。`,
+    confirmText: '开始重分类',
+  });
+  if (!ok) return;
+  try {
+    const data = await api('/api/books/classify-all', { method: 'POST' });
+    await loadBooks();
+    toast(`已为 ${data.updated} / ${data.total} 本书更新分类`, 'ok');
+  } catch (e) {
+    toast(e.message, 'error');
   }
 }
 

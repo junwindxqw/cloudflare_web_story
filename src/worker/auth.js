@@ -130,13 +130,20 @@ async function migrate(db) {
       added_at INTEGER NOT NULL,
       progress REAL NOT NULL DEFAULT 0,
       location TEXT NOT NULL DEFAULT '',
-      last_read_at INTEGER
+      last_read_at INTEGER,
+      category TEXT NOT NULL DEFAULT 'other'
     )`),
     db.prepare('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id)'),
   ]);
   // 旧库的 books 表补 user_id 列（已存在则忽略）
   try {
     await db.prepare("ALTER TABLE books ADD COLUMN user_id TEXT NOT NULL DEFAULT ''").run();
+  } catch {
+    /* 列已存在 */
+  }
+  // 旧库的 books 表补 category 列（已存在则忽略）
+  try {
+    await db.prepare("ALTER TABLE books ADD COLUMN category TEXT NOT NULL DEFAULT 'other'").run();
   } catch {
     /* 列已存在 */
   }
