@@ -1,4 +1,4 @@
-// TXT 阅读器：UTF-8/GBK 自动识别 + 分栏分页 + 章节目录
+// TXT 阅读器：UTF-8/GBK 自动识别 + 章节目录 + 左右翻页 / 上下滚动两种阅读方式
 import { bookPath } from '../common.js';
 
 const GAP = 48;
@@ -56,6 +56,7 @@ export async function init(ctx) {
   }
   ctx.setToc(tocItems.map((t) => ({ label: t.label, target: t.label, level: 0 })));
 
+  let mode = ctx.getReadingMode(); // 'paged'（左右翻页）| 'scroll'（上下滚动）
   let page = 0;
   let totalPages = 1;
   let step = 1;
@@ -73,11 +74,24 @@ export async function init(ctx) {
     content.style.fontFamily = ctx.getFontFamily();
     const w = stage.clientWidth - 32;
     content.style.width = w + 'px';
-    content.style.columnWidth = w + 'px';
-    content.style.columnGap = GAP + 'px';
     content.style.padding = '16px 0 24px';
-    stage.style.overflow = 'hidden';
-    step = w + GAP;
+    if (mode === 'paged') {
+      stage.style.overflow = 'hidden';
+      content.style.height = '100%';
+      content.style.margin = '0';
+      content.style.columnWidth = w + 'px';
+      content.style.columnGap = GAP + 'px';
+      step = w + GAP;
+    } else {
+      stage.style.overflowY = 'auto';
+      stage.style.overflowX = 'hidden';
+      stage.style.overscrollBehavior = 'contain';
+      content.style.height = 'auto';
+      content.style.margin = '0 auto';
+      content.style.columnWidth = 'auto';
+      content.style.columnGap = 'normal';
+      content.style.transform = '';
+    }
   }
 
   function recompute() {
@@ -85,17 +99,35 @@ export async function init(ctx) {
   }
 
   function render() {
+    if (mode !== 'paged') return;
     content.style.transform = `translateX(${-page * step + 16}px)`;
     content.style.transition = 'transform 0.22s ease';
   }
 
+  // 两种模式统一用比例表示进度，续读/跳转因此与阅读方式无关
+  const pagedFraction = () => (totalPages > 1 ? page / (totalPages - 1) : 0);
+  function scrollFraction() {
+    const max = stage.scrollHeight - stage.clientHeight;
+    return max > 0 ? Math.min(1, Math.max(0, stage.scrollTop / max)) : 0;
+  }
+  const currentFraction = () => (mode === 'paged' ? pagedFraction() : scrollFraction());
+  // 滚动模式下按比例恢复位置
+  function restoreFraction(frac) {
+    if (mode === 'paged') {
+      page = Math.round(frac * (totalPages - 1));
+      render();
+    } else {
+      stage.scrollTop = frac * (stage.scrollHeight - stage.clientHeight);
+    }
+  }
+
   function report(label) {
-    // 首页 0%、末页 100%，与 foliate 引擎一致；续读按比例恢复也因此更准
-    const frac = totalPages > 1 ? page / (totalPages - 1) : 0;
+    const frac = currentFraction();
+    // 翻页模式：首页 0%、末页 100%，与 foliate 引擎一致；续读按比例恢复也因此更准
     ctx.progress({
       fraction: frac,
-      location: { page, total: totalPages, fraction: frac },
-      label: label || `${page + 1} / ${totalPages} 页`,
+      location: mode === 'paged' ? { page, total: totalPages, fraction: frac } : { fraction: frac },
+      label: label || (mode === 'paged' ? `${page + 1} / ${totalPages} 页` : `${Math.round(frac * 100)}%`),
     });
   }
 
@@ -105,29 +137,34 @@ export async function init(ctx) {
     report(label);
   }
 
+  // 滚动模式下翻一屏
+  function scrollByScreen(dir) {
+    stage.scrollBy({ top: dir * stage.clientHeight * 0.85, behavior: 'smooth' });
+  }
+
   applyStyle();
-  recompute();
+  if (mode === 'paged') recompute();
 
   // 续读：按比例恢复
   const resumeFrac = ctx.resume?.fraction || (ctx.resume?.total ? (ctx.resume.page || 0) / ctx.resume.total : 0);
-  page = resumeFrac > 0 ? Math.round(resumeFrac * (totalPages - 1)) : 0;
-  render();
+  restoreFraction(Math.max(0, resumeFrac));
   report();
 
-  // 章节定位（offsetLeft 是布局坐标，不受 transform 影响）
-  function chapterPage(el) {
-    return Math.max(0, Math.round((el.offsetLeft - 16) / step));
+  // 章节定位（offsetLeft/offsetTop 是布局坐标，不受 transform 影响）
+  function chapterPos(el) {
+    return mode === 'paged'
+      ? Math.max(0, Math.round((el.offsetLeft - 16) / step))
+      : Math.max(0, el.offsetTop - 16);
   }
 
-  // 交互：点击左右 1/3 翻页，中间呼出工具栏；触摸滑动翻页
-  const app = stage.closest('.reader-app');
+  // 交互：点击左右 1/3 翻页（滚动模式为翻一屏），中间呼出工具栏；翻页模式支持触摸滑动翻页
   let touchX = null;
   let touchY = null;
   stage.addEventListener('click', (e) => {
     const x = e.clientX;
-    if (x < innerWidth * 0.3) goToPage(page - 1);
-    else if (x > innerWidth * 0.7) goToPage(page + 1);
-    else app.classList.toggle('chrome-hidden');
+    if (x < innerWidth * 0.3) mode === 'paged' ? goToPage(page - 1) : scrollByScreen(-1);
+    else if (x > innerWidth * 0.7) mode === 'paged' ? goToPage(page + 1) : scrollByScreen(1);
+    else ctx.toggleChrome();
   });
   stage.addEventListener('touchstart', (e) => {
     touchX = e.touches[0]?.clientX ?? null;
@@ -137,45 +174,68 @@ export async function init(ctx) {
     if (touchX == null) return;
     const dx = (e.changedTouches[0]?.clientX ?? touchX) - touchX;
     const dy = (e.changedTouches[0]?.clientY ?? touchY ?? 0) - (touchY ?? 0);
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+    if (mode === 'paged' && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
       goToPage(dx < 0 ? page + 1 : page - 1);
     }
     touchX = touchY = null;
   }, { passive: true });
 
-  // 字号 / 主题 / 尺寸变化
+  // 滚动模式下滚动即进度
+  let scrollRaf = 0;
+  stage.addEventListener('scroll', () => {
+    if (mode !== 'scroll' || scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      report();
+    });
+  }, { passive: true });
+
+  // 字号 / 主题 / 尺寸 / 阅读方式变化
   ctx.showTextRows(true);
   ctx.showZoomRow(false);
+  ctx.showModeRow(true);
   const ro = new ResizeObserver(() => {
-    const frac = totalPages > 1 ? page / (totalPages - 1) : 0;
+    const frac = currentFraction();
     applyStyle();
-    recompute();
-    page = Math.round(frac * (totalPages - 1));
-    render();
+    if (mode === 'paged') recompute();
+    restoreFraction(frac);
     report();
   });
   ro.observe(stage);
 
   const modApi = {
-    prev: () => goToPage(page - 1),
-    next: () => goToPage(page + 1),
+    prev: () => (mode === 'paged' ? goToPage(page - 1) : scrollByScreen(-1)),
+    next: () => (mode === 'paged' ? goToPage(page + 1) : scrollByScreen(1)),
     async jumpToFraction(frac) {
-      goToPage(Math.round(frac * (totalPages - 1)));
+      if (mode === 'paged') goToPage(Math.round(frac * (totalPages - 1)));
+      else {
+        restoreFraction(frac);
+        report();
+      }
     },
     goTo(target) {
       const item = tocItems.find((t) => t.label === target);
-      if (item) goToPage(chapterPage(item.el));
+      if (!item) return;
+      if (mode === 'paged') goToPage(chapterPos(item.el));
+      else stage.scrollTop = chapterPos(item.el);
     },
     applyTheme() {
       applyStyle();
       render();
     },
     applyTextStyle() {
-      const frac = totalPages > 1 ? page / (totalPages - 1) : 0;
+      const frac = currentFraction();
       applyStyle();
-      recompute();
-      page = Math.round(frac * (totalPages - 1));
-      render();
+      if (mode === 'paged') recompute();
+      restoreFraction(frac);
+      report();
+    },
+    applyMode() {
+      const frac = currentFraction();
+      mode = ctx.getReadingMode();
+      applyStyle();
+      if (mode === 'paged') recompute();
+      restoreFraction(frac);
       report();
     },
   };

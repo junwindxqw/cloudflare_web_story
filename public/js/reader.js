@@ -1,4 +1,4 @@
-// 阅读器编排：通用 UI（进度条、目录、设置）+ 按格式分发到具体渲染模块
+// 阅读器编排：通用 UI（底部工具栏、目录/设置弹层、显隐调度）+ 按格式分发到具体渲染模块
 import { api, bookIdFromLocation, toast } from './common.js';
 
 // 从 /read/:id 路径提取书籍 ID（解析与白名单校验在 common.js 中完成）
@@ -15,8 +15,7 @@ const labelEl = $('#progress-label');
 const tocBtn = $('#toc-btn');
 const settingsBtn = $('#settings-btn');
 const loadTip = $('#load-tip');
-const drawer = $('#toc-drawer');
-const drawerMask = $('#drawer-mask');
+const tocSheet = $('#toc-sheet');
 const sheet = $('#settings-sheet');
 const sheetMask = $('#sheet-mask');
 
@@ -24,7 +23,11 @@ const THEME_KEY = 'ws_rtheme';
 const FONT_KEY = 'ws_rfont';
 const LH_KEY = 'ws_rlh';
 const FAM_KEY = 'ws_rfam';
+const MODE_KEY = 'ws_rmode';
 const WAKE_KEY = 'ws_rwake';
+
+// 底部菜单无操作自动隐藏的时长
+const IDLE_HIDE_MS = 10000;
 
 let book = null;
 let mod = null; // 当前格式模块
@@ -54,6 +57,10 @@ export function getFontFamily() {
   if (v === 'sans') return '"Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
   return '';
 }
+// 阅读方式：'paged'（左右翻页，默认）| 'scroll'（上下滚动）
+export function getReadingMode() {
+  return localStorage.getItem(MODE_KEY) === 'scroll' ? 'scroll' : 'paged';
+}
 
 const ctx = {
   id,
@@ -63,6 +70,7 @@ const ctx = {
   getFontSize,
   getLineHeight,
   getFontFamily,
+  getReadingMode,
   // 渲染模块汇报进度
   progress({ fraction = 0, location = {}, label, tocCurrent }) {
     current.fraction = Math.max(0, Math.min(1, fraction));
@@ -92,6 +100,14 @@ const ctx = {
   showZoomRow(show) {
     $('#zoom-row').hidden = !show;
   },
+  // 阅读方式一行：仅可切换模式的格式显示（PDF 恒为滚动）
+  showModeRow(show) {
+    $('#mode-row').hidden = !show;
+  },
+  // 点击屏幕中间：切换底部菜单显隐
+  toggleChrome,
+  // 格式模块内的交互（iframe 内点击 / 滚动等）也要重置自动隐藏计时
+  activity,
   toast,
 };
 
@@ -117,46 +133,51 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveNow(true);
 });
 
-/* ---------- 通用控件 ---------- */
-function toggleChrome() {
-  app.classList.toggle('chrome-hidden');
+/* ---------- 底部菜单显隐：点击中间切换 + 10 秒无操作自动隐藏 ---------- */
+const chromeVisible = () => !app.classList.contains('chrome-hidden');
+let hideTimer = null;
+function scheduleAutoHide() {
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    hideTimer = null;
+    // 弹层打开或正在拖动进度条时不自动隐藏
+    if (sheetOpen || dragging) return;
+    app.classList.add('chrome-hidden');
+  }, IDLE_HIDE_MS);
 }
+function toggleChrome(force) {
+  const hide = force ?? chromeVisible();
+  app.classList.toggle('chrome-hidden', hide);
+  if (hide) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  } else {
+    scheduleAutoHide();
+  }
+}
+// 任何用户操作都重置 10 秒倒计时（菜单可见时才需要）
+function activity() {
+  if (chromeVisible()) scheduleAutoHide();
+}
+addEventListener('pointerdown', activity, true);
+addEventListener('keydown', activity, true);
+addEventListener('wheel', activity, { passive: true, capture: true });
+addEventListener('touchstart', activity, { passive: true });
+// scroll 不冒泡，但捕获阶段可命中各滚动容器（TXT/PDF 滚动层、foliate 分页容器）
+addEventListener('scroll', activity, { passive: true, capture: true });
+// 从后台切回时重新计时，避免挂起的定时器立即隐藏菜单
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && chromeVisible()) scheduleAutoHide();
+});
 
-/* 移动端：从屏幕顶部下拉 24px 以上呼出隐藏的工具栏（不触发点击翻页） */
-let swipeStartY = null;
-let swipeStartT = 0;
-addEventListener(
-  'touchstart',
-  (e) => {
-    if (e.touches.length !== 1) return;
-    swipeStartY = e.touches[0].clientY;
-    swipeStartT = Date.now();
-  },
-  { passive: true }
-);
-addEventListener(
-  'touchend',
-  (e) => {
-    if (swipeStartY == null || innerWidth > 720) {
-      swipeStartY = null;
-      return;
-    }
-    const endY = e.changedTouches[0]?.clientY ?? swipeStartY;
-    const dy = endY - swipeStartY;
-    if (swipeStartY < 80 && dy > 24 && Date.now() - swipeStartT < 600) {
-      app.classList.remove('chrome-hidden');
-    }
-    swipeStartY = null;
-  },
-  { passive: true }
-);
-
+/* ---------- 通用控件 ---------- */
 slider.addEventListener('input', () => {
   dragging = true;
   labelEl.textContent = Math.round((slider.value / 1000) * 100) + '%';
 });
 slider.addEventListener('change', async () => {
   dragging = false;
+  scheduleAutoHide();
   const frac = slider.value / 1000;
   try {
     await mod.jumpToFraction(frac);
@@ -170,28 +191,19 @@ $('#back-btn').addEventListener('click', () => {
   saveNow(true);
   location.href = '/';
 });
-tocBtn.addEventListener('click', openDrawer);
-$('#toc-close').addEventListener('click', closeDrawer);
-drawerMask.addEventListener('click', closeDrawer);
-function hideSheet() {
-  sheet.hidden = true;
-  sheetMask.hidden = true;
-}
-settingsBtn.addEventListener('click', () => {
-  sheet.hidden = !sheet.hidden;
-  sheetMask.hidden = sheet.hidden;
-});
-sheetMask.addEventListener('click', hideSheet);
+tocBtn.addEventListener('click', () => showSheet('toc'));
+$('#toc-close').addEventListener('click', closeSheets);
+settingsBtn.addEventListener('click', () => showSheet('settings'));
+sheetMask.addEventListener('click', closeSheets);
 addEventListener('keydown', (e) => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   // 空格 / 回车保留按钮、链接自身的激活行为
   if ((e.key === ' ' || e.key === 'Enter') && e.target.closest?.('button, a')) return;
   if (e.key === 'Escape') {
-    closeDrawer();
-    hideSheet();
+    closeSheets();
     return;
   }
-  if (!sheet.hidden) return;
+  if (sheetOpen) return;
   switch (e.key) {
     case 'ArrowLeft':
     case 'PageUp':
@@ -215,6 +227,36 @@ addEventListener('keydown', (e) => {
   }
 });
 
+/* 目录 / 设置弹层（同一时间只开一个，共用遮罩） */
+let sheetOpen = null;
+let maskTimer = null;
+function showSheet(which) {
+  if (sheetOpen === which) return;
+  sheetOpen = which;
+  tocSheet.classList.toggle('open', which === 'toc');
+  sheet.classList.toggle('open', which === 'settings');
+  clearTimeout(maskTimer);
+  sheetMask.hidden = false;
+  void sheetMask.offsetWidth;
+  sheetMask.classList.add('show');
+  clearTimeout(hideTimer); // 弹层打开期间暂停自动隐藏
+  hideTimer = null;
+  if (which === 'toc') {
+    // 打开时定位到当前章节
+    tocSheet.querySelector('.toc-item.current')?.scrollIntoView({ block: 'center' });
+  }
+}
+function closeSheets() {
+  if (!sheetOpen) return;
+  sheetOpen = null;
+  tocSheet.classList.remove('open');
+  sheet.classList.remove('open');
+  sheetMask.classList.remove('show');
+  clearTimeout(maskTimer);
+  maskTimer = setTimeout(() => (sheetMask.hidden = true), 300);
+  if (chromeVisible()) scheduleAutoHide();
+}
+
 /* 目录 */
 function buildToc(items) {
   const list = $('#toc-list');
@@ -226,7 +268,7 @@ function buildToc(items) {
     btn.textContent = it.label;
     btn.dataset.target = it.target;
     btn.addEventListener('click', () => {
-      closeDrawer();
+      closeSheets();
       mod?.goTo(it.target);
     });
     list.append(btn);
@@ -240,22 +282,11 @@ function highlightToc(target) {
     el.classList.toggle('current', on);
     if (on) found = el;
   }
-  if (found) {
+  if (found && sheetOpen === 'toc') {
     const r = found.getBoundingClientRect();
     const lr = list.getBoundingClientRect();
     if (r.top < lr.top || r.bottom > lr.bottom) found.scrollIntoView({ block: 'center' });
   }
-}
-function openDrawer() {
-  drawer.classList.add('open');
-  drawerMask.hidden = false;
-  void drawerMask.offsetWidth;
-  drawerMask.classList.add('show');
-}
-function closeDrawer() {
-  drawer.classList.remove('open');
-  drawerMask.classList.remove('show');
-  setTimeout(() => (drawerMask.hidden = true), 260);
 }
 
 /* 设置面板 */
@@ -291,6 +322,14 @@ $('#fam-seg').addEventListener('click', (e) => {
   mod?.applyTextStyle();
   toast('字体已切换');
 });
+$('#mode-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-mode]');
+  if (!btn) return;
+  localStorage.setItem(MODE_KEY, btn.dataset.mode);
+  syncModeUI();
+  mod?.applyMode?.();
+  toast(btn.dataset.mode === 'scroll' ? '已切换为上下滚动' : '已切换为左右翻页');
+});
 function syncTextPrefsUI() {
   const lh = String(getLineHeight());
   for (const b of document.querySelectorAll('#lh-seg button')) {
@@ -299,6 +338,12 @@ function syncTextPrefsUI() {
   const fam = localStorage.getItem(FAM_KEY) || 'default';
   for (const b of document.querySelectorAll('#fam-seg button')) {
     b.classList.toggle('active', b.dataset.fam === fam);
+  }
+}
+function syncModeUI() {
+  const m = getReadingMode();
+  for (const b of document.querySelectorAll('#mode-seg button')) {
+    b.classList.toggle('active', b.dataset.mode === m);
   }
 }
 $('#zoom-in').addEventListener('click', () => mod?.zoomIn?.());
@@ -352,9 +397,11 @@ function applyReaderTheme() {
 async function start() {
   applyReaderTheme();
   syncTextPrefsUI();
+  syncModeUI();
   syncWakeUI();
   syncWakeLock();
   $('#font-size-label').textContent = getFontSize();
+  toggleChrome(false); // 初始显示菜单，10 秒无操作后自动隐藏
   try {
     // ID 经白名单校验后放入参数化 JSON body，请求目标为静态常量
     book = await api('/api/books/detail', {

@@ -39,8 +39,18 @@ export async function init(ctx) {
   }
   styleCss();
 
-  await view.init({ lastLocation: ctx.resume?.cfi || undefined });
+  // 阅读方式：上下滚动 / 左右翻页（固定版式如 CBZ 不支持，保持引擎默认）
+  function applyMode() {
+    if (view.isFixedLayout) return;
+    view.renderer?.setAttribute('flow', ctx.getReadingMode() === 'scroll' ? 'scrolled' : 'paginated');
+  }
+  applyMode();
 
+  // 滚动活动：分页容器在 closed shadow root 内，window 捕获监听收不到其 scroll 事件
+  // （scroll 不冒泡且 composed:false），但 paginator 会把容器滚动重派发为自身 scroll 事件
+  view.renderer?.addEventListener('scroll', () => ctx.activity());
+
+  // 先挂事件监听再 init：初始 CFI 续读的 relocate 可能在 init 期间同步触发
   view.addEventListener('relocate', (e) => {
     const d = e.detail || {};
     const fraction = typeof d.fraction === 'number' ? d.fraction : d.location?.fraction || 0;
@@ -51,9 +61,13 @@ export async function init(ctx) {
       tocCurrent: d.tocItem?.href,
     });
   });
-  // 每个章节加载后重新应用样式，并接管点击翻页：左/右 1/3 翻页，中间呼出工具栏
+  // 每个章节加载后重新应用样式，并接管点击翻页：左/右 1/3 翻页，中间呼出工具栏；
+  // iframe 内的点击/按键不会到达父页面，需单独上报用户活动以重置菜单自动隐藏
+  // （滚动活动由上方 paginator 重派发的 scroll 事件统一覆盖）
   view.addEventListener('load', ({ detail }) => {
     view.renderer?.setStyles?.(css);
+    detail?.doc?.addEventListener('pointerdown', () => ctx.activity());
+    detail?.doc?.addEventListener('keydown', () => ctx.activity());
     detail?.doc?.addEventListener('click', (e) => {
       // 链接（含书内脚注跳转）交给 view.js 内置处理
       if (e.target.closest?.('a[href]')) return;
@@ -61,9 +75,11 @@ export async function init(ctx) {
       const x = e.clientX ?? w / 2;
       if (x < w * 0.3) view.prev();
       else if (x > w * 0.7) view.next();
-      else ctx.host.closest('.reader-app')?.classList.toggle('chrome-hidden');
+      else ctx.toggleChrome();
     });
   });
+
+  await view.init({ lastLocation: ctx.resume?.cfi || undefined });
 
   // 目录（含子级）
   const items = [];
@@ -78,6 +94,7 @@ export async function init(ctx) {
 
   ctx.showTextRows(true);
   ctx.showZoomRow(false);
+  ctx.showModeRow(!view.isFixedLayout);
 
   const modApi = {
     prev: () => view.prev(),
@@ -93,6 +110,9 @@ export async function init(ctx) {
     },
     applyTextStyle() {
       styleCss();
+    },
+    applyMode() {
+      applyMode();
     },
   };
   return modApi;

@@ -131,17 +131,29 @@ export async function init(ctx) {
   }
   scroll.addEventListener('scroll', () => {
     reportCurrent();
-    autoChrome();
+    ctx.activity();
   }, { passive: true });
 
-  // 向下滚动时隐藏工具栏
-  let lastY = 0;
-  const app = ctx.host.closest('.reader-app');
-  function autoChrome() {
-    const y = scroll.scrollTop;
-    if (y > lastY + 24 && y > 80) app.classList.add('chrome-hidden');
-    else if (y < lastY - 24) app.classList.remove('chrome-hidden');
-    lastY = y;
+  // 点击分区：左右 1/3 翻一屏，中间呼出/隐藏工具栏（拖动滚动不算点击）
+  let downX = 0;
+  let downY = 0;
+  scroll.addEventListener('pointerdown', (e) => {
+    downX = e.clientX;
+    downY = e.clientY;
+  });
+  scroll.addEventListener('click', (e) => {
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 10) return;
+    const x = e.clientX;
+    if (x < innerWidth * 0.3) prevScreen();
+    else if (x > innerWidth * 0.7) nextScreen();
+    else ctx.toggleChrome();
+  });
+
+  function prevScreen() {
+    scroll.scrollBy({ top: -(scroll.clientHeight - 60), behavior: 'smooth' });
+  }
+  function nextScreen() {
+    scroll.scrollBy({ top: scroll.clientHeight - 60, behavior: 'smooth' });
   }
 
   layout();
@@ -158,12 +170,8 @@ export async function init(ctx) {
   }
 
   const modApi = {
-    prev() {
-      scroll.scrollBy({ top: -(scroll.clientHeight - 60), behavior: 'smooth' });
-    },
-    next() {
-      scroll.scrollBy({ top: scroll.clientHeight - 60, behavior: 'smooth' });
-    },
+    prev: prevScreen,
+    next: nextScreen,
     async jumpToFraction(frac) {
       const page = Math.max(1, Math.min(pdf.numPages, Math.round(frac * pdf.numPages) || 1));
       scroll.scrollTop = pages[page - 1].div.offsetTop - MARGIN;
@@ -214,5 +222,6 @@ export async function init(ctx) {
   ctx.setZoomLabel(zoomLabel());
   ctx.showTextRows(false);
   ctx.showZoomRow(true);
+  ctx.showModeRow(false); // PDF 恒为上下滚动，无阅读方式可切换
   return modApi;
 }

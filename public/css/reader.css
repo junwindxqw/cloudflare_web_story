@@ -27,7 +27,7 @@ body.reader-page { overflow: hidden; }
   background: #15171c;
 }
 
-/* 顶栏 / 底栏（悬浮，可隐藏） */
+/* 顶栏 / 底栏（悬浮，点击屏幕中间切换显隐，10 秒无操作自动隐藏） */
 .chrome {
   position: absolute;
   left: 0;
@@ -45,9 +45,12 @@ body.reader-page { overflow: hidden; }
 }
 #reader-top { top: 0; }
 #reader-bottom {
-  bottom: 0;
   top: auto;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  bottom: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 8px 14px max(10px, env(safe-area-inset-bottom));
   border-bottom: none;
   border-top: 1px solid var(--chrome-line);
 }
@@ -56,6 +59,8 @@ body.reader-page { overflow: hidden; }
 #reader-title {
   flex: 1;
   min-width: 0;
+  /* 右侧留出与返回按钮等宽的空间，让标题在屏幕上视觉居中 */
+  padding-right: 44px;
   text-align: center;
   font-size: 15px;
   font-weight: 600;
@@ -64,10 +69,37 @@ body.reader-page { overflow: hidden; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.r-actions { display: flex; gap: 2px; }
+
+/* 底部工具栏：进度条 + 目录 / 翻页 / 设置 */
+.bar-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+}
+.bar-progress #progress-slider { flex: 1; }
+.bar-tools { display: flex; }
+.bar-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0 3px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--chrome-text);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.bar-btn svg { width: 21px; height: 21px; }
+.bar-btn:hover { background: rgba(128, 128, 128, 0.14); }
+.bar-btn:active { transform: scale(0.94); }
 
 .reader-app.chrome-hidden .chrome { opacity: 0; pointer-events: none; }
-#reader-top.chrome-hidden-fix { transform: translateY(-100%); }
 .reader-app.chrome-hidden #reader-top { transform: translateY(-110%); }
 .reader-app.chrome-hidden #reader-bottom { transform: translateY(110%); }
 
@@ -108,7 +140,6 @@ body.reader-page { overflow: hidden; }
 
 /* 底栏滑杆 */
 #progress-slider {
-  flex: 1;
   appearance: none;
   -webkit-appearance: none;
   height: 4px;
@@ -133,33 +164,6 @@ body.reader-page { overflow: hidden; }
   background: var(--chrome-text);
   border: none;
 }
-
-/* 移动端：触控热区加大、字号更醒目、设置面板变底部抽屉 */
-@media (max-width: 720px) {
-  .chrome { padding: 10px 12px; gap: 8px; }
-  .chrome .icon-btn { width: 42px; height: 42px; }
-  #progress-slider { height: 6px; }
-  #progress-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
-  #progress-slider::-moz-range-thumb { width: 22px; height: 22px; }
-  #progress-label { font-size: 13px; min-width: 56px; }
-  #settings-sheet {
-    left: 12px;
-    right: 12px;
-    bottom: 76px;
-    max-width: none;
-    width: auto;
-    transform: none;
-    animation: sheet-up 0.2s ease;
-    padding: 14px 16px 16px;
-  }
-  @keyframes sheet-up {
-    from { opacity: 0; transform: translateY(16px); }
-    to { opacity: 1; transform: none; }
-  }
-  #sheet-mask { background: rgba(0, 0, 0, 0.35); }
-  .sheet-row { font-size: 14px; padding: 6px 0; }
-  .seg button { min-width: 56px; height: 38px; font-size: 13px; }
-}
 #progress-label {
   font-size: 12px;
   color: var(--chrome-text);
@@ -168,43 +172,64 @@ body.reader-page { overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 
-/* 目录抽屉 */
-#drawer-mask {
+/* 底部弹层（目录 / 设置）：从底部滑出 */
+#sheet-mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
   z-index: 45;
+  background: rgba(0, 0, 0, 0.35);
   opacity: 0;
   transition: opacity 0.25s;
 }
-#drawer-mask.show { opacity: 1; }
-#toc-drawer {
+#sheet-mask.show { opacity: 1; }
+#toc-sheet,
+#settings-sheet {
   position: absolute;
-  top: 0;
-  bottom: 0;
   left: 0;
-  width: min(320px, 82vw);
-  background: var(--chrome-bg);
-  backdrop-filter: blur(16px);
+  right: 0;
+  bottom: 0;
   z-index: 46;
-  transform: translateX(-102%);
+  background: var(--sheet-bg);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--chrome-line);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  color: var(--chrome-text);
+  transform: translateY(105%);
   transition: transform 0.28s ease;
+}
+#toc-sheet {
   display: flex;
   flex-direction: column;
-  color: var(--chrome-text);
-  border-right: 1px solid var(--chrome-line);
+  max-height: 72dvh;
 }
-#toc-drawer.open { transform: none; }
+#settings-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px max(16px, env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 60px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#toc-sheet.open,
+#settings-sheet.open { transform: none; }
+
 .toc-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 12px 10px 18px;
-  padding-top: max(14px, env(safe-area-inset-top));
+  padding: 12px 12px 8px 18px;
   border-bottom: 1px solid var(--chrome-line);
   font-size: 16px;
+  flex-shrink: 0;
 }
-#toc-list { flex: 1; overflow-y: auto; padding: 8px 0 30px; }
+#toc-list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 0 max(16px, env(safe-area-inset-bottom));
+}
 .toc-item {
   display: block;
   width: 100%;
@@ -223,39 +248,7 @@ body.reader-page { overflow: hidden; }
 .toc-item:hover { background: rgba(128, 128, 128, 0.14); }
 .toc-item.current { color: var(--primary, #5a63e8); font-weight: 600; }
 
-/* 设置面板 */
-#sheet-mask {
-  position: absolute;
-  inset: 0;
-  z-index: 47;
-  background: transparent;
-}
-#settings-sheet {
-  position: absolute;
-  left: 50%;
-  bottom: 70px;
-  transform: translateX(-50%);
-  z-index: 48;
-  background: var(--sheet-bg);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--chrome-line);
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 280px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100dvh - 100px);
-  overflow-y: auto;
-  color: var(--chrome-text);
-  animation: sheet-in 0.18s ease;
-}
-@keyframes sheet-in {
-  from { opacity: 0; transform: translate(-50%, 8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
+/* 设置面板行 */
 .sheet-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .sheet-label { font-size: 13px; opacity: 0.75; }
 .theme-dots { display: flex; gap: 8px; }
@@ -296,7 +289,7 @@ body.reader-page { overflow: hidden; }
 .stepper button:active { transform: scale(0.95); }
 .stepper span { min-width: 44px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
 
-/* 分段选择（行距 / 字体） */
+/* 分段选择（阅读方式 / 行距 / 字体） */
 .seg {
   display: flex;
   border: 1px solid rgba(128, 128, 128, 0.35);
@@ -342,6 +335,37 @@ body.reader-page { overflow: hidden; }
 }
 .switch[aria-checked="true"] { background: var(--primary, #5a63e8); }
 .switch[aria-checked="true"]::after { transform: translateX(18px); }
+
+/* 移动端：触控热区加大、字号更醒目 */
+@media (max-width: 720px) {
+  .chrome { padding: 10px 12px; gap: 8px; }
+  .chrome .icon-btn { width: 42px; height: 42px; }
+  #progress-slider { height: 6px; }
+  #progress-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+  #progress-slider::-moz-range-thumb { width: 22px; height: 22px; }
+  #progress-label { font-size: 13px; min-width: 56px; }
+  .bar-btn { font-size: 11px; padding-top: 7px; }
+  .bar-btn svg { width: 23px; height: 23px; }
+  .sheet-row { font-size: 14px; padding: 4px 0; }
+  .seg button { min-width: 56px; height: 38px; font-size: 13px; }
+}
+
+/* 桌面端：底栏与弹层限制宽度并居中，避免宽屏拉伸 */
+@media (min-width: 721px) {
+  #reader-bottom {
+    padding-left: max(14px, calc(50% - 380px));
+    padding-right: max(14px, calc(50% - 380px));
+  }
+  #toc-sheet,
+  #settings-sheet {
+    left: 50%;
+    right: auto;
+    width: min(560px, 92vw);
+    transform: translate(-50%, 105%);
+  }
+  #toc-sheet.open,
+  #settings-sheet.open { transform: translate(-50%, 0); }
+}
 
 /* TXT 内容样式（由 JS 控制字号与配色） */
 #txt-content {
